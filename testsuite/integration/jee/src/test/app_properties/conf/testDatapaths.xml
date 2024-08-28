@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datapaths xmlns="http://www.ericsson.com/DataPaths"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.ericsson.com/DataPaths datapath.xsd">
+
+	<!-- eftp to defined here so it can be re-used in both data paths -->
+	<endpoint id="EventFTP"
+		uri="eftp://${ipAddress}:${port}?username=${user}&amp;password=${password}">
+		<property name="ipAddress" type="instance" />
+		<property name="port" type="instance" />
+		<property name="user" type="instance" />
+		<property name="password" type="instance" />
+	</endpoint>
+
+	<endpoint id="StreamTerminatorEndpoint" uri="Streaming://foo?port=${port}">
+		<property name="port" type="instance" />
+	</endpoint>
+
+	<endpoint id="Sftp_File" uri="file:${directory}">
+		<property name="directory" type="instance" />
+	</endpoint>
+
+
+	<errorhandler id="ftp" redeliver_attempts="0">
+		<processor id="errorProcessor" classname="com.ericsson.nms.mediation.sets.pm.processors.FTPErrorProcessor" />
+		<to id="anonymous" uri="jms:queue:${queueName}?username=guest&amp;password=guestp">
+			<property name="queueName" type="instance" />
+		</to>
+	</errorhandler>
+
+
+
+	<!-- Basic Data Path for SFTP Single File Transfer -->
+	<datapath id="com.ericsson.nms.mediation.singleFileTransfer"
+		errorhandler="ftp">
+		<protocolInfo name="PM" />
+		<headers>
+			<header name="secureFtp" value="${target:secureFtp}" />
+		</headers>
+		<accessPoint id="${datapathId}" type="synch" />
+		<processor id="esftpProcessor" classname="com.ericsson.nms.mediation.sets.pm.processors.EftpProcessor" />
+		<reference type="endpoint" ref="EventFTP" />
+		<processor id="counterProcessor"
+			classname="com.ericsson.nms.mediation.components.CountingBytesProcessor" />
+		<reference type="endpoint" ref="Sftp_File"></reference>
+		<processor id="esftpEventProcessor" classname="com.ericsson.nms.mediation.sets.pm.processors.EventProcessor" />
+		<to id="anonymous" uri="jms:queue:${queueName}?username=guest&amp;password=guestp">
+			<property name="queueName" type="instance" />
+		</to>
+	</datapath>
+
+
+	<datapath id="com.ericsson.nms.mediation.streamTerminator"
+		errorhandler="ftp">
+		<protocolInfo name="PM" />
+		<accessPoint id="${datapathId}" type="synch" />
+		<reference type="endpoint" ref="StreamTerminatorEndpoint"></reference>
+		<to id="anonymous" uri="jms:queue:${queueName}?username=guest&amp;password=guestp">
+			<property name="queueName" type="instance" />
+		</to>
+	</datapath>
+
+</datapaths>
